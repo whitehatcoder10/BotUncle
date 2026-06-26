@@ -1,0 +1,42 @@
+# Node
+
+node_modules
+dist
+build
+coverage
+
+# Python
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment
+
+.env
+.env.*
+
+# VS Code
+
+.vscode/
+
+# Mac
+
+.DS_Store
+
+# Windows
+
+Thumbs.db
+
+# Logs
+
+*.log
+
+# Docker
+
+docker-data/
+
+# Misc
+
+.idea/

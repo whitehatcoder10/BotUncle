@@ -1,0 +1,11 @@
+{
+  "name": "botuncle",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.18.2",
+  "scripts": {
+    "dev": "echo \"Run individual apps\"",
+    "lint": "echo \"Lint workspace\"",
+    "format": "echo \"Format workspace\""
+  }
+}
