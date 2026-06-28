@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+
+  ai-service:
+    build:
+      context: ../services/ai-service
+
+    container_name: botuncle-ai
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ../services/ai-service:/app
+
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
