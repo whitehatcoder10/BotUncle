@@ -1,12 +1,41 @@
+import { Route, Routes } from 'react-router-dom'
 import './App.css'
+import GuestRoute from './components/GuestRoute'
+import ProtectedRoute from './components/ProtectedRoute'
+import LoginPage from './features/auth/LoginPage'
+import SignupPage from './features/auth/SignupPage'
+import DashboardPage from './features/dashboard/DashboardPage'
+import HomePage from './pages/HomePage'
 
 function App() {
   return (
-    <main className="landing">
-      <h1>BotUncle</h1>
-      <p>AI-powered support chatbots for your business.</p>
-      <span className="badge">Phase 0 — skeleton</span>
-    </main>
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route
+        path="/login"
+        element={
+          <GuestRoute>
+            <LoginPage />
+          </GuestRoute>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <GuestRoute>
+            <SignupPage />
+          </GuestRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   )
 }
 

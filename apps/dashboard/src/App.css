@@ -21,3 +21,73 @@
   color: var(--accent);
   border: 1px solid var(--accent-border);
 }
+
+.status {
+  font-size: 14px;
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+.landing-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  text-decoration: none;
+  transition: box-shadow 0.2s;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  box-shadow: var(--shadow);
+}
+
+.logout-btn {
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.plans-section {
+  margin-top: 24px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.plans-section h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.plans-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.plans-list li {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 15px;
+}

@@ -4,8 +4,10 @@
   "private": true,
   "packageManager": "pnpm@10.18.2",
   "scripts": {
-    "dev": "echo \"Run individual apps\"",
-    "lint": "echo \"Lint workspace\"",
-    "format": "echo \"Format workspace\""
+    "dev:api": "docker compose -f infra/docker-compose.yml up --build",
+    "dev:dashboard": "pnpm --filter dashboard dev",
+    "dev:widget": "pnpm --filter widget build --watch",
+    "build:widget": "pnpm --filter widget build",
+    "verify:local": "pnpm build:widget && pnpm --filter dashboard build"
   }
 }

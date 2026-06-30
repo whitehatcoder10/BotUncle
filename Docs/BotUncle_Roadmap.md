@@ -1,7 +1,7 @@
 # BotUncle — Zero-Spend, Production-Grade RAG SaaS
 ### Full from-scratch rebuild roadmap + infrastructure plan + learning companion
 
-> Supersedes the earlier "Botangirl" draft. Renamed back to **BotUncle** (matches your existing repo). This version rebuilds the project from scratch with a production folder structure, Docker from day one, and an architecture that costs you **₹0 until a business actually pays you** — at which point specific, named upgrade triggers tell you exactly what to switch.
+> Supersedes the earlier "Botangirl" draft. Renamed back to **BotUncle** (matches your existing repo). This version rebuilds the project from scratch with a production folder structure, Docker from day one, and an architecture that costs you **₹0 upfront and ₹0 recurring until a business actually pays you** — at which point specific, named upgrade triggers tell you exactly what to switch. **Build locally first; deploy to Cloud Run + Cloudflare only in Phase 11** when the MVP is worth hosting.
 
 ---
 
@@ -24,6 +24,7 @@
 | Dedicated **widget security section** (Section 7) | You asked a sharp, real question about the embed snippet — it deserves a full architectural answer, not a footnote |
 | Dropped Vercel for the dashboard | Vercel's Hobby (free) plan **terms of service explicitly prohibit commercial use** — the day a business pays you, you're in violation. Swapped for Cloudflare Pages, which has no such restriction, and which you'll already be using for DNS |
 | Dropped reliance on Appwrite Functions | Appwrite's free plan was cut to **2 functions max** (Jan 2026 change). All compute logic now lives in one FastAPI service you fully control, which is also a better interview story than a handful of platform functions |
+| **Local-first build, deploy in Phase 11** | Google Cloud may require a refundable billing prepayment (e.g. ₹1000) before Cloud Run is usable — that violates "₹0 upfront" during skeleton/MVP work. Architecture unchanged; only the *schedule* moves cloud deploy to after the product is built locally |
 
 ---
 
@@ -39,10 +40,13 @@
 
 The rule: **every component must have a free tier that is free indefinitely (not a 12-month trial), and you upgrade only when a specific, named trigger fires** — almost always "a paying customer's usage requires it," which means the upgrade pays for itself.
 
+**Local-first corollary:** Phases 0–10 run entirely on your machine via Docker Compose + free-tier SaaS APIs (Appwrite, Pinecone, Gemini). No Google Cloud billing account, no Cloudflare domain setup, and no CI deploy pipeline are required until **Phase 11 — Production Deployment**, when you have a real MVP to host.
+
 Two free-tier traps to avoid, found while researching this:
 - **AWS S3 / EC2 "free tier"** is free for 12 months only, then billed — avoided here by not using S3 for storage (Appwrite Storage instead) and not using EC2 (Cloud Run instead, whose free tier is permanent).
 - **Vercel Hobby** plan free tier is permanent *but contractually for non-commercial use only* — avoided by using Cloudflare Pages for the dashboard instead.
 - **AWS Route 53** (DNS) costs ~$0.50/month per hosted zone — avoided by keeping DNS at your existing registrar or, better, pointing your domain's nameservers to **Cloudflare**, which is free DNS *and* gives you WAF/CDN/bot-protection as a side effect.
+- **Google Cloud billing prepayment** (refundable, but upfront — e.g. ₹1000 in some regions) is required before Cloud Run activates — deferred to Phase 11 so Phase 0 skeleton work stays truly ₹0 out of pocket.
 
 Full upgrade-trigger table is in Section 13 — read it once now so every stack choice below makes sense as "free until X happens."
 
@@ -85,10 +89,8 @@ botuncle/
 │       ├── Dockerfile
 │       └── requirements.txt / pyproject.toml
 ├── infra/
-│   ├── docker-compose.yml          # local dev: ai-service + redis (Upstash-compatible) + .env.example
-│   ├── github-actions/
-│   │   ├── deploy-ai-service.yml   # build → push to ghcr.io → deploy to Cloud Run
-│   │   └── deploy-dashboard.yml    # build → deploy to Cloudflare Pages
+│   ├── docker-compose.yml          # local dev: ai-service + redis + .env.example
+│   ├── github-actions/             # Phase 11 templates: deploy-ai-service.yml, deploy-dashboard.yml
 │   └── scripts/                    # one-off setup scripts (create Pinecone index, seed Appwrite collections)
 ├── docs/
 │   ├── ARCHITECTURE.md             # condensed Section 5 + 8 from this file
@@ -99,7 +101,7 @@ botuncle/
 
 **Why this shape, in one sentence each:** `apps/widget` is separate from `apps/dashboard` because they ship to different places and have wildly different size budgets (a widget injected into someone else's site must be tiny; a dashboard doesn't); `services/ai-service` is one Python service, not split into microservices, because at this scale multiple services would mean more deployment surface for no real benefit — name this tradeoff explicitly if asked in an interview ("modular monolith over premature microservices").
 
-**Docker from day one:** `infra/docker-compose.yml` runs `ai-service` + a local Redis container, so you develop against the same containerized service you deploy — no "works on my machine" gap. The dashboard doesn't need Docker locally (Vite's dev server is faster), but it gets a Dockerfile anyway for portability/documentation purposes.
+**Docker from day one:** `infra/docker-compose.yml` runs `ai-service` + a local Redis container — your laptop is the dev environment through Phase 10. The same Dockerfile is what Cloud Run will use in Phase 11, so there is no "works on my machine" gap when you eventually deploy. The dashboard runs via Vite's dev server locally (faster iteration); it gets a Dockerfile for Phase 11 portability.
 
 ---
 
@@ -278,18 +280,25 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 
 ## 9. Phase-by-phase build plan
 
-### Phase 0 — Monorepo, Docker & free-tier accounts (3–4 days)
-**Goal:** the skeleton from Section 4 exists, builds, and deploys an empty "hello world" end to end before any real feature is written.
+### Phase 0 — Monorepo, Docker & local dev environment (2–3 days)
+**Goal:** the skeleton from Section 4 exists, builds, and runs **locally** end-to-end before any real feature is written.
 
 - [ ] Create the repo with the `apps/`, `services/`, `infra/`, `docs/` structure.
-- [ ] `services/ai-service`: FastAPI skeleton with `/health`, Dockerfile, `docker-compose.yml` with Redis.
-- [ ] Sign up: Appwrite Cloud (free org), Pinecone (free index), Google Cloud (enable Cloud Run, confirm free-tier region), Cloudflare (add your domain, point nameservers here), Upstash (free Redis), Razorpay (test mode), Sentry.
-- [ ] GitHub Actions: build the `ai-service` Docker image, push to `ghcr.io`, deploy to Cloud Run — get a real URL serving `/health` before writing any feature code.
-- [ ] `apps/dashboard`: Vite + React skeleton, deployed to Cloudflare Pages on your domain.
+- [ ] `services/ai-service`: FastAPI skeleton with `/health`, Dockerfile (multi-stage, non-root user), `infra/docker-compose.yml` with Redis.
+- [ ] `apps/dashboard`: Vite + React skeleton — runs at `http://localhost:5173` via `pnpm --filter dashboard dev`.
+- [ ] `apps/widget`: Vite library-mode scaffold — builds to `dist/widget.js`.
+- [ ] `infra/.env.example` + local `.env` wired into docker-compose.
+- [ ] **Local verification (replaces Cloud Run deploy for this phase):**
+  - `docker compose up` in `infra/` → `http://localhost:8000/health` returns `{"status":"healthy",...}`
+  - `pnpm --filter dashboard dev` → BotUncle landing page loads
+  - `pnpm --filter widget build` → `dist/widget.js` produced
+- [ ] Sign up for free-tier services with **no upfront payment**: Appwrite Cloud (free org), Pinecone (free index), Gemini API (free tier), Razorpay (test mode). Optional now: Sentry (free Developer tier).
 
-**Concepts:** containerization (why Docker — "it runs the same way on my laptop, CI, and Cloud Run" is an actual, defensible answer, not a buzzword); the difference between a monorepo and microservices, and why a modular monolith is the right call at this scale.
+**Explicitly deferred to Phase 11:** Google Cloud (billing, Cloud Run), Cloudflare (domain, Pages, WAF), GitHub Actions → GHCR → Cloud Run deploy, production secrets.
 
-**Agent prompt:** *"Scaffold a monorepo with apps/dashboard (Vite+React), apps/widget (Vite library mode), services/ai-service (FastAPI with a /health endpoint), and infra/docker-compose.yml running ai-service plus a local Redis container. Add a Dockerfile for ai-service using a slim Python base image, multi-stage build, non-root user. Add a GitHub Actions workflow that builds and pushes the ai-service image to ghcr.io on push to main."*
+**Concepts:** containerization (why Docker — "the same Dockerfile runs on my laptop and later on Cloud Run"); monorepo vs microservices; **local-first development** — prove the product works in Docker Compose before spending anything on hosting.
+
+**Agent prompt:** *"Scaffold a monorepo with apps/dashboard (Vite+React), apps/widget (Vite library mode), services/ai-service (FastAPI with a /health endpoint), and infra/docker-compose.yml running ai-service plus a local Redis container. Add a Dockerfile for ai-service using a slim Python base image, multi-stage build, non-root user. Verify everything runs locally — no cloud deploy."*
 
 ### Phase 1 — Core auth & business management (1 week)
 **Goal:** a business can sign up, log in, and see an empty dashboard with a `Business` record created.
@@ -323,7 +332,7 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 - [ ] Dashboard: file upload → `Documents` Appwrite Storage + a `Documents` record with `status=processing`.
 - [ ] `ai-service/app/ingestion/parsers/`: one module per file type (pdf via `pdfplumber`, docx via `python-docx`, xlsx/csv via `pandas`), each outputting a normalized `{text, sourceMeta}` list.
 - [ ] `ai-service/app/ingestion/chunker.py`: recursive chunking, ~300–500 tokens, ~10–15% overlap — write this by hand before reaching for a library.
-- [ ] Make it async: the upload endpoint enqueues a Cloud Task and returns immediately; a separate endpoint (hit by the Task) does the actual parsing/chunking and updates `Documents.status`.
+- [ ] Make it async: the upload endpoint enqueues a job and returns immediately; a worker does the actual parsing/chunking and updates `Documents.status`. **Locally:** use a Redis-backed queue or a background task in the same FastAPI process. **Production (Phase 11):** Cloud Tasks pointing back at Cloud Run.
 
 **Concepts:** the chunk-size/overlap tradeoff; why this has to be async (you cannot block an HTTP request on parsing a 1,000-row spreadsheet); Cloud Tasks as a free, managed queue vs rolling your own with Celery+Redis.
 
@@ -390,13 +399,14 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 | Human handoff / escalation (built in Phase 6) | — | Already covered — surface it in the dashboard as a "needs attention" inbox |
 
 ### Phase 9 — Production hardening (1 week)
-**Goal:** the security and reliability layers from Section 7 and Section 6 are all actually wired up, not just designed.
+**Goal:** the security and reliability layers from Section 7 are wired up in code and testable locally — ready to flip on in production during Phase 11.
 
-- [ ] Cloudflare: confirm Bot Fight Mode is on, the one free rate-limit rule is configured, Turnstile is on `/widget/init`.
-- [ ] Upstash-backed per-business/per-IP rate limiting on `/chat`.
+- [ ] Upstash-backed (or Redis-backed locally) per-business/per-IP rate limiting on `/chat`.
 - [ ] Sentry wired into `ai-service` for error tracking; structured logging throughout.
 - [ ] Secrets audit: confirm nothing sensitive is in the dashboard/widget bundles or the repo.
-- [ ] Set a Google Cloud budget alert (e.g., email at $1 spend) as a tripwire in case free-tier limits are ever exceeded unexpectedly.
+- [ ] Turnstile integration on `/widget/init` (code ready; Cloudflare account configured in Phase 11).
+
+**Deferred to Phase 11:** Cloudflare Bot Fight Mode, edge rate-limit rules, GCP budget alerts, production domain allowlisting.
 
 ### Phase 10 — Testing, load testing & demo polish (1 week)
 **Goal:** something you can confidently demo and defend.
@@ -404,6 +414,21 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 - [ ] Unit tests: chunking, retrieval threshold logic, webhook idempotency, JWT handshake validation — the four places a subtle bug is most damaging.
 - [ ] Basic load test on `/chat` (e.g. `locust`/`k6`) — know your real latency/throughput numbers.
 - [ ] Record a demo: upload a real document, ask a question, show retrieved chunks, then deliberately try the "copy the snippet to an unauthorized page" attack live and show it getting rejected — that's a genuinely good demo moment.
+
+### Phase 11 — Production Deployment (3–5 days)
+**Goal:** deploy the completed MVP to the **same target architecture** from Section 5. Only start this phase when the product is feature-complete and you are willing to pay any required upfront billing prepayment (e.g. GCP's refundable ₹1000).
+
+- [ ] **Google Cloud:** create/link project, billing account (+ prepayment if required), $1 budget alert, enable Cloud Run Admin API, `us-central1` region, service account (`Cloud Run Admin` + `Service Account User`), GitHub secrets (`GCP_PROJECT_ID`, `GCP_SA_KEY`).
+- [ ] **GitHub Actions → GHCR → Cloud Run:** copy `infra/github-actions/deploy-ai-service.yml` to `.github/workflows/`, build Docker image, push to `ghcr.io`, deploy with min-instances `0`, max-instances `2`, 512Mi, request-based billing.
+- [ ] **Cloudflare:** add domain, point nameservers, enable Bot Fight Mode + one free rate-limit rule.
+- [ ] **Cloudflare Pages:** deploy `apps/dashboard` (static build) and host `apps/widget/dist/widget.js`.
+- [ ] **Production environment variables:** Gemini, Pinecone, Appwrite, Upstash Redis, Razorpay, JWT signing secret — injected via Cloud Run env vars and GitHub encrypted secrets, never committed.
+- [ ] **Domain configuration:** dashboard URL, widget script URL, API base URL (Cloud Run service URL or custom domain).
+- [ ] **Monitoring:** Sentry production DSN, GCP billing alerts, smoke-test `/health` + login + widget handshake on a real allowed domain.
+
+**Concepts:** the deploy artifact is the same Docker image you already built locally; Phase 11 is wiring hosting, DNS, and secrets — not rewriting application logic.
+
+**Agent prompt:** *"Set up production deployment: GitHub Actions workflow building ai-service Dockerfile, pushing to ghcr.io, deploying to Cloud Run us-central1 with scale-to-zero. Deploy dashboard and widget.js to Cloudflare Pages. Document all production env vars in infra/.env.example with a separate production checklist."*
 
 ---
 
@@ -454,8 +479,9 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 | 11 | Phase 8 |
 | 12 | Phase 9 |
 | 13 | Phase 10 + demo polish |
+| 14 | Phase 11 — Production Deployment |
 
-~13 weeks part-time. Phase 8 can run partly in parallel with Phase 7 since they touch mostly disjoint code.
+~14 weeks part-time. Phase 8 can run partly in parallel with Phase 7 since they touch mostly disjoint code. **Do not start Phase 11 until Phases 0–10 are done** — deploy only when there is an application worth hosting.
 
 ---
 
@@ -465,7 +491,7 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 |---|---|---|---|
 | Cloudflare | Free DNS/WAF/bot protection, 1 rate-limit rule | Need >1 rate-limit rule, Super Bot Fight Mode, or >5 WAF custom rules | Pro (~$20–25/mo) |
 | Cloudflare Pages | Free, commercial use allowed | Need advanced team/analytics features | Paid add-ons |
-| Cloud Run | 2M requests / 360,000 GiB-s / 180,000 vCPU-s every month, forever | Sustained traffic past free quota (real paying customer volume) | Pay-as-you-go Cloud Run — gradual, not a cliff |
+| Cloud Run | 2M requests / 360,000 GiB-s / 180,000 vCPU-s every month, forever (after billing activated) | MVP complete + willing to pay any required billing prepayment (Phase 11) | Pay-as-you-go Cloud Run — gradual, not a cliff |
 | Appwrite Cloud | 100% free org, generous storage/bandwidth, 2 functions max (unused here) | Outgrow storage/bandwidth, or want dedicated (non-shared) resources | Pro (~$25+/project/mo) |
 | Pinecone | ~2GB / ~350K vectors, one index | Approaching free storage cap, need multiple indexes or higher QPS | Standard (~$50/mo minimum) |
 | Gemini (LLM) | Free tier, rate-limited | Free-tier RPM/RPD limits start rejecting real customer traffic | Pay-as-you-go (Flash-tier still ~$0.10–0.40/1M tokens) |
@@ -475,7 +501,7 @@ One index, **namespace = `businessId`** — never query across namespaces. Vecto
 | GitHub Actions / ghcr.io | Free minutes / free image storage at this scale | Heavy private-repo build volume | Paid minutes |
 | Sentry | Free Developer tier (~few thousand events/mo) | Event volume outgrows free tier | Team plan |
 
-**The headline number to internalize:** in the old architecture, cost scaled with FAQ count × every message. In this one, your only meaningful recurring cost line *before any upgrade trigger fires* is **zero** — and the first real cost you'll likely take on, in order, is Cloud Run pay-as-you-go (cheap, gradual) followed by Pinecone Standard (a real jump, ~$50/mo minimum) once a single business's data genuinely needs it. Knowing that order, and why, is a better interview answer than a vague "it's all free."
+**The headline number to internalize:** during Phases 0–10, your out-of-pocket cost is **₹0** — everything runs locally or on genuinely free SaaS tiers. The first money you may spend is Phase 11: optionally GCP's refundable billing prepayment to activate Cloud Run, then pay-as-you-go only if traffic exceeds free tier. Pinecone Standard (~$50/mo minimum) is the next meaningful jump once a business's data genuinely needs it.
 
 ---
 

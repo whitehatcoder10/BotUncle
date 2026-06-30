@@ -1,0 +1,9 @@
+import os
+
+APPWRITE_ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://cloud.appwrite.io/v1")
+APPWRITE_PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "")
+APPWRITE_API_KEY = os.getenv("APPWRITE_API_KEY", "")
+APPWRITE_DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "")
+APPWRITE_BUSINESSES_COLLECTION_ID = os.getenv("APPWRITE_BUSINESSES_COLLECTION_ID", "")
+
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
